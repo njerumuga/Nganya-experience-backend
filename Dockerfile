@@ -1,20 +1,13 @@
-# Use Java 17 JDK
-FROM eclipse-temurin:17-jdk
-
-# Set working directory
+# ===== BUILD STAGE =====
+FROM maven:3.9.2-eclipse-temurin-17 AS build
 WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copy project files
-COPY . .
-
-# Make mvnw executable (fixes permission denied)
-RUN chmod +x mvnw
-
-# Build project (skip tests for faster build)
-RUN ./mvnw clean package -DskipTests
-
-# Expose port
+# ===== RUNTIME STAGE =====
+FROM eclipse-temurin:17-jdk
+WORKDIR /app
+COPY --from=build /app/target/backend-0.0.1-SNAPSHOT.jar backend.jar
 EXPOSE 8080
-
-# Run the jar (replace 'your-app.jar' with actual jar name)
-CMD ["java", "-jar", "target/Nganya-experience-backend-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "backend.jar"]
