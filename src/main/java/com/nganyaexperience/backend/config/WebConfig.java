@@ -9,10 +9,12 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Persistent storage folder on Render
-        String uploadPath = "/mnt/data/uploads/";
-
+        // General uploads (events)
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadPath);
+                .addResourceLocations("file:uploads/");
+
+        // Nganyas uploads (persistent on Render)
+        registry.addResourceHandler("/uploads/nganyas/**")
+                .addResourceLocations("file:/mnt/data/uploads/nganyas/");
     }
 }

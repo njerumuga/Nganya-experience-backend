@@ -13,28 +13,24 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    // Use /mnt/data/uploads on Render or default to local uploads folder
-    @Value("${file.upload-dir:/mnt/data/uploads}")
+    // Default folder for general uploads (events, etc.)
+    @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
     private static final String NGANYA_FOLDER = "nganyas";
 
-    // ✅ SAVE IMAGE (Render-compatible)
+    // ✅ SAVE NGANYA IMAGE (persistent on Render)
     public String saveNganyaImage(MultipartFile file) {
         try {
-            // Ensure nganyas folder exists
-            Path nganyaUploadDir = Paths.get(uploadDir, NGANYA_FOLDER);
+            // Use persistent folder only for nganyas
+            Path nganyaUploadDir = Paths.get("/mnt/data/uploads", NGANYA_FOLDER);
             Files.createDirectories(nganyaUploadDir);
 
-            // Generate unique filename
             String filename = "nganya_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-
-            // Save file to the folder
             Path filePath = nganyaUploadDir.resolve(filename);
+
             file.transferTo(filePath.toFile());
 
-            // Return URL the frontend can fetch
-            // Make sure your backend serves /uploads/** from uploadDir
             return "/uploads/nganyas/" + filename;
 
         } catch (IOException e) {
@@ -47,8 +43,12 @@ public class FileStorageService {
         if (relativePath == null) return;
 
         try {
-            // Remove leading / and resolve to uploadDir
-            Path filePath = Paths.get(uploadDir, relativePath.replaceFirst("^/uploads/", ""));
+            Path filePath;
+            if (relativePath.startsWith("/uploads/nganyas/")) {
+                filePath = Paths.get("/mnt/data/uploads", relativePath.replaceFirst("/uploads/", ""));
+            } else {
+                filePath = Paths.get(uploadDir, relativePath.replaceFirst("/uploads/", ""));
+            }
             Files.deleteIfExists(filePath);
         } catch (Exception e) {
             System.out.println("Failed to delete file: " + e.getMessage());
