@@ -13,22 +13,19 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    // Default folder for general uploads (events, etc.)
-    @Value("${file.upload-dir:uploads}")
-    private String uploadDir;
+    @Value("${file.upload-dir}")
+    private String uploadDir; // "uploads"
 
     private static final String NGANYA_FOLDER = "nganyas";
 
-    // ✅ SAVE NGANYA IMAGE (persistent on Render)
+    // Save nganya image (persistent)
     public String saveNganyaImage(MultipartFile file) {
         try {
-            // Use persistent folder only for nganyas
             Path nganyaUploadDir = Paths.get("/mnt/data/uploads", NGANYA_FOLDER);
             Files.createDirectories(nganyaUploadDir);
 
             String filename = "nganya_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = nganyaUploadDir.resolve(filename);
-
             file.transferTo(filePath.toFile());
 
             return "/uploads/nganyas/" + filename;
@@ -38,7 +35,24 @@ public class FileStorageService {
         }
     }
 
-    // ✅ DELETE IMAGE
+    // Save event/general file (non-nganya)
+    public String saveEventImage(MultipartFile file) {
+        try {
+            Path eventUploadDir = Paths.get(uploadDir); // relative uploads folder
+            Files.createDirectories(eventUploadDir);
+
+            String filename = "event_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+            Path filePath = eventUploadDir.resolve(filename);
+            file.transferTo(filePath.toFile());
+
+            return "/uploads/" + filename;
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store event image", e);
+        }
+    }
+
+    // Delete image
     public void deleteFile(String relativePath) {
         if (relativePath == null) return;
 

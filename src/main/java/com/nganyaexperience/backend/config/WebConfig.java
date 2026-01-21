@@ -9,11 +9,11 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // General uploads (events)
+        // Events / general uploads
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:uploads/");
 
-        // Nganyas uploads (persistent on Render)
+        // Nganyas uploads (persistent)
         registry.addResourceHandler("/uploads/nganyas/**")
                 .addResourceLocations("file:/mnt/data/uploads/nganyas/");
     }
