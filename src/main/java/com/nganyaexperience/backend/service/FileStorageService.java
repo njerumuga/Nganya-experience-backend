@@ -13,26 +13,28 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    @Value("${file.upload-dir}")
+    // Use /mnt/data/uploads on Render or default to local uploads folder
+    @Value("${file.upload-dir:/mnt/data/uploads}")
     private String uploadDir;
 
     private static final String NGANYA_FOLDER = "nganyas";
 
-    // ✅ SAVE IMAGE
+    // ✅ SAVE IMAGE (Render-compatible)
     public String saveNganyaImage(MultipartFile file) {
         try {
+            // Ensure nganyas folder exists
             Path nganyaUploadDir = Paths.get(uploadDir, NGANYA_FOLDER);
-
-            // Ensure directory exists
             Files.createDirectories(nganyaUploadDir);
 
-            String filename =
-                    "nganya_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+            // Generate unique filename
+            String filename = "nganya_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
 
+            // Save file to the folder
             Path filePath = nganyaUploadDir.resolve(filename);
             file.transferTo(filePath.toFile());
 
-            // URL frontend can load
+            // Return URL the frontend can fetch
+            // Make sure your backend serves /uploads/** from uploadDir
             return "/uploads/nganyas/" + filename;
 
         } catch (IOException e) {
@@ -45,7 +47,8 @@ public class FileStorageService {
         if (relativePath == null) return;
 
         try {
-            Path filePath = Paths.get(relativePath.replaceFirst("/", ""));
+            // Remove leading / and resolve to uploadDir
+            Path filePath = Paths.get(uploadDir, relativePath.replaceFirst("^/uploads/", ""));
             Files.deleteIfExists(filePath);
         } catch (Exception e) {
             System.out.println("Failed to delete file: " + e.getMessage());
