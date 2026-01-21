@@ -14,58 +14,44 @@ import java.util.UUID;
 public class FileStorageService {
 
     @Value("${file.upload-dir}")
-    private String uploadDir; // "uploads"
+    private String uploadDir;
 
-    private static final String NGANYA_FOLDER = "nganyas";
+    // ---------- SAVE EVENT POSTER ----------
+    public String saveEventPoster(MultipartFile file) {
+        return saveFile(file, "events", "event");
+    }
 
-    // Save nganya image (persistent)
+    // ---------- SAVE NGANYA IMAGE ----------
     public String saveNganyaImage(MultipartFile file) {
-        try {
-            Path nganyaUploadDir = Paths.get("/mnt/data/uploads", NGANYA_FOLDER);
-            Files.createDirectories(nganyaUploadDir);
+        return saveFile(file, "nganyas", "nganya");
+    }
 
-            String filename = "nganya_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path filePath = nganyaUploadDir.resolve(filename);
+    // ---------- COMMON LOGIC ----------
+    private String saveFile(MultipartFile file, String folder, String prefix) {
+        try {
+            Path dir = Paths.get(uploadDir, folder);
+            Files.createDirectories(dir);
+
+            String filename = prefix + "_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+            Path filePath = dir.resolve(filename);
+
             file.transferTo(filePath.toFile());
 
-            return "/uploads/nganyas/" + filename;
+            // 🔥 ALWAYS RETURN /uploads/**
+            return "/uploads/" + folder + "/" + filename;
 
         } catch (IOException e) {
-            throw new RuntimeException("Failed to store nganya image", e);
+            throw new RuntimeException("File upload failed", e);
         }
     }
 
-    // Save event/general file (non-nganya)
-    public String saveEventImage(MultipartFile file) {
-        try {
-            Path eventUploadDir = Paths.get(uploadDir); // relative uploads folder
-            Files.createDirectories(eventUploadDir);
-
-            String filename = "event_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path filePath = eventUploadDir.resolve(filename);
-            file.transferTo(filePath.toFile());
-
-            return "/uploads/" + filename;
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to store event image", e);
-        }
-    }
-
-    // Delete image
-    public void deleteFile(String relativePath) {
-        if (relativePath == null) return;
+    // ---------- DELETE ----------
+    public void deleteFile(String publicUrl) {
+        if (publicUrl == null) return;
 
         try {
-            Path filePath;
-            if (relativePath.startsWith("/uploads/nganyas/")) {
-                filePath = Paths.get("/mnt/data/uploads", relativePath.replaceFirst("/uploads/", ""));
-            } else {
-                filePath = Paths.get(uploadDir, relativePath.replaceFirst("/uploads/", ""));
-            }
-            Files.deleteIfExists(filePath);
-        } catch (Exception e) {
-            System.out.println("Failed to delete file: " + e.getMessage());
-        }
+            Path path = Paths.get(publicUrl.substring(1)); // remove leading /
+            Files.deleteIfExists(path);
+        } catch (Exception ignored) {}
     }
 }

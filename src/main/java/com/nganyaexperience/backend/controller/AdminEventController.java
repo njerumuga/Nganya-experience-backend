@@ -4,14 +4,12 @@ import com.nganyaexperience.backend.entity.Event;
 import com.nganyaexperience.backend.entity.TicketType;
 import com.nganyaexperience.backend.repository.BookingRepository;
 import com.nganyaexperience.backend.repository.EventRepository;
+import com.nganyaexperience.backend.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -22,7 +20,8 @@ import java.time.LocalTime;
 public class AdminEventController {
 
     private final EventRepository eventRepository;
-    private final BookingRepository bookingRepository; // needed for deleting bookings
+    private final BookingRepository bookingRepository;
+    private final FileStorageService fileStorageService;
 
     // ✅ CREATE EVENT
     @PostMapping(consumes = "multipart/form-data")
@@ -34,17 +33,11 @@ public class AdminEventController {
             @RequestParam String time,
             @RequestParam Event.Status status,
             @RequestParam(required = false) MultipartFile poster
-    ) throws Exception {
+    ) {
 
         String posterUrl = null;
-
         if (poster != null && !poster.isEmpty()) {
-            String fileName = System.currentTimeMillis() + "_" + poster.getOriginalFilename();
-            Path uploadPath = Path.of("uploads/events/" + fileName);
-            Files.createDirectories(uploadPath.getParent());
-            Files.write(uploadPath, poster.getBytes());
-
-            posterUrl = "/events/" + fileName;
+            posterUrl = fileStorageService.saveEventPoster(poster);
         }
 
         Event event = Event.builder()
@@ -60,27 +53,19 @@ public class AdminEventController {
         return eventRepository.save(event);
     }
 
-    // ✅ DELETE EVENT (cascade tickets & bookings)
+    // ✅ DELETE EVENT
     @DeleteMapping("/{id}")
     @Transactional
     public void deleteEvent(@PathVariable Long id) {
-        Event event = eventRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
 
-        // Delete all bookings for this event's tickets
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
         for (TicketType ticket : event.getTickets()) {
             bookingRepository.deleteAllByTicketTypeId(ticket.getId());
         }
 
-        // Delete poster file if exists
-        if (event.getPosterUrl() != null) {
-            File posterFile = new File("uploads" + event.getPosterUrl());
-            if (posterFile.exists()) {
-                posterFile.delete();
-            }
-        }
-
-        // Delete event (tickets will be deleted automatically if mapped with CascadeType.ALL in Event entity)
+        fileStorageService.deleteFile(event.getPosterUrl());
         eventRepository.delete(event);
     }
 }

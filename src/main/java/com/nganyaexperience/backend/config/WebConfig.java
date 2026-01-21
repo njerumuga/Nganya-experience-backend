@@ -4,17 +4,18 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Events / general uploads
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:uploads/");
 
-        // Nganyas uploads (persistent)
-        registry.addResourceHandler("/uploads/nganyas/**")
-                .addResourceLocations("file:/mnt/data/uploads/nganyas/");
+        Path uploadDir = Paths.get("uploads").toAbsolutePath();
+
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(uploadDir.toUri().toString());
     }
 }
