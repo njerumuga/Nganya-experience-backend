@@ -1,5 +1,7 @@
 package com.nganyaexperience.backend.controller;
 
+import com.nganyaexperience.backend.dto.AdminEventRequest;
+import com.nganyaexperience.backend.dto.TicketTypeRequest;
 import com.nganyaexperience.backend.entity.Event;
 import com.nganyaexperience.backend.entity.TicketType;
 import com.nganyaexperience.backend.repository.BookingRepository;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/events")
@@ -23,16 +26,12 @@ public class AdminEventController {
     private final BookingRepository bookingRepository;
     private final FileStorageService fileStorageService;
 
-    // ✅ CREATE EVENT
+    // ✅ CREATE EVENT (WITH POSTER + TICKETS)
     @PostMapping(consumes = "multipart/form-data")
     public Event createEvent(
-            @RequestParam String title,
-            @RequestParam String description,
-            @RequestParam String location,
-            @RequestParam String date,
-            @RequestParam String time,
-            @RequestParam Event.Status status,
-            @RequestParam(required = false) MultipartFile poster
+            @RequestPart("event") AdminEventRequest eventRequest,
+            @RequestPart("tickets") List<TicketTypeRequest> tickets,
+            @RequestPart(value = "poster", required = false) MultipartFile poster
     ) {
 
         String posterUrl = null;
@@ -41,19 +40,32 @@ public class AdminEventController {
         }
 
         Event event = Event.builder()
-                .title(title)
-                .description(description)
-                .location(location)
-                .date(LocalDate.parse(date))
-                .time(LocalTime.parse(time))
-                .status(status)
+                .title(eventRequest.getTitle())
+                .description(eventRequest.getDescription())
+                .location(eventRequest.getLocation())
+                .date(LocalDate.parse(eventRequest.getDate()))
+                .time(LocalTime.parse(eventRequest.getTime()))
+                .status(Event.Status.valueOf(eventRequest.getStatus()))
                 .posterUrl(posterUrl)
                 .build();
 
-        return eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
+
+        for (TicketTypeRequest t : tickets) {
+            TicketType ticket = TicketType.builder()
+                    .name(t.getName())
+                    .price(t.getPrice())
+                    .capacity(t.getCapacity())
+                    .event(savedEvent)
+                    .build();
+
+            savedEvent.getTickets().add(ticket);
+        }
+
+        return eventRepository.save(savedEvent);
     }
 
-    // ✅ DELETE EVENT
+    // ✅ DELETE EVENT (CLEAN CASCADE)
     @DeleteMapping("/{id}")
     @Transactional
     public void deleteEvent(@PathVariable Long id) {
