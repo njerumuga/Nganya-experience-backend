@@ -26,18 +26,23 @@ public class FileStorageService {
         return saveFile(file, "nganyas", "nganya");
     }
 
-    // ---------- COMMON LOGIC ----------
+    // ---------- CORE SAVE LOGIC ----------
     private String saveFile(MultipartFile file, String folder, String prefix) {
         try {
-            Path dir = Paths.get(uploadDir, folder);
-            Files.createDirectories(dir);
+            // 🔥 ABSOLUTE PATH (CRITICAL FIX)
+            Path baseDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+            Path targetDir = baseDir.resolve(folder);
 
-            String filename = prefix + "_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path filePath = dir.resolve(filename);
+            Files.createDirectories(targetDir); // ALWAYS create
 
-            file.transferTo(filePath.toFile());
+            String filename =
+                    prefix + "_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
 
-            // 🔥 ALWAYS RETURN /uploads/**
+            Path targetFile = targetDir.resolve(filename);
+
+            file.transferTo(targetFile);
+
+            // 🔥 PUBLIC URL (frontend safe)
             return "/uploads/" + folder + "/" + filename;
 
         } catch (IOException e) {
@@ -50,7 +55,10 @@ public class FileStorageService {
         if (publicUrl == null) return;
 
         try {
-            Path path = Paths.get(publicUrl.substring(1)); // remove leading /
+            Path path = Paths.get(uploadDir)
+                    .resolve(publicUrl.replace("/uploads/", ""))
+                    .toAbsolutePath();
+
             Files.deleteIfExists(path);
         } catch (Exception ignored) {}
     }
