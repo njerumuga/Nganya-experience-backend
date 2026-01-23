@@ -6,7 +6,7 @@ import com.nganyaexperience.backend.entity.Event;
 import com.nganyaexperience.backend.entity.TicketType;
 import com.nganyaexperience.backend.repository.BookingRepository;
 import com.nganyaexperience.backend.repository.EventRepository;
-import com.nganyaexperience.backend.service.FileStorageService;
+import com.nganyaexperience.backend.service.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -24,9 +25,9 @@ public class AdminEventController {
 
     private final EventRepository eventRepository;
     private final BookingRepository bookingRepository;
-    private final FileStorageService fileStorageService;
+    private final CloudinaryService cloudinaryService;
 
-    // ✅ CREATE EVENT (WITH POSTER + TICKETS)
+    // ✅ CREATE EVENT
     @PostMapping(consumes = "multipart/form-data")
     public Event createEvent(
             @RequestPart("event") AdminEventRequest eventRequest,
@@ -36,7 +37,7 @@ public class AdminEventController {
 
         String posterUrl = null;
         if (poster != null && !poster.isEmpty()) {
-            posterUrl = fileStorageService.saveEventPoster(poster);
+            posterUrl = cloudinaryService.uploadEventPoster(poster);
         }
 
         Event event = Event.builder()
@@ -47,25 +48,25 @@ public class AdminEventController {
                 .time(LocalTime.parse(eventRequest.getTime()))
                 .status(Event.Status.valueOf(eventRequest.getStatus()))
                 .posterUrl(posterUrl)
+                .tickets(new ArrayList<>())
                 .build();
 
-        Event savedEvent = eventRepository.save(event);
+        Event saved = eventRepository.save(event);
 
         for (TicketTypeRequest t : tickets) {
             TicketType ticket = TicketType.builder()
                     .name(t.getName())
                     .price(t.getPrice())
                     .capacity(t.getCapacity())
-                    .event(savedEvent)
+                    .event(saved)
                     .build();
-
-            savedEvent.getTickets().add(ticket);
+            saved.getTickets().add(ticket);
         }
 
-        return eventRepository.save(savedEvent);
+        return eventRepository.save(saved);
     }
 
-    // ✅ DELETE EVENT (CLEAN CASCADE)
+    // ✅ DELETE EVENT
     @DeleteMapping("/{id}")
     @Transactional
     public void deleteEvent(@PathVariable Long id) {
@@ -73,11 +74,10 @@ public class AdminEventController {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
-        for (TicketType ticket : event.getTickets()) {
-            bookingRepository.deleteAllByTicketTypeId(ticket.getId());
-        }
+        event.getTickets()
+                .forEach(t -> bookingRepository.deleteAllByTicketTypeId(t.getId()));
 
-        fileStorageService.deleteFile(event.getPosterUrl());
+        cloudinaryService.deleteImage(event.getPosterUrl());
         eventRepository.delete(event);
     }
 }

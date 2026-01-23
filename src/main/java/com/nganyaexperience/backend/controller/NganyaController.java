@@ -2,7 +2,7 @@ package com.nganyaexperience.backend.controller;
 
 import com.nganyaexperience.backend.entity.Nganya;
 import com.nganyaexperience.backend.repository.NganyaRepository;
-import com.nganyaexperience.backend.service.FileStorageService;
+import com.nganyaexperience.backend.service.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,15 +17,15 @@ import java.util.List;
 public class NganyaController {
 
     private final NganyaRepository nganyaRepository;
-    private final FileStorageService fileStorageService;
+    private final CloudinaryService cloudinaryService;
 
-    // ✅ GET ALL
+    // ✅ GET ALL NGANYAS
     @GetMapping("/nganyas")
     public List<Nganya> getNganyas() {
         return nganyaRepository.findAll();
     }
 
-    // ✅ CREATE
+    // ✅ CREATE NGANYA (WITH IMAGE UPLOAD)
     @PostMapping("/admin/nganyas")
     public Nganya createNganya(
             @RequestParam String name,
@@ -35,28 +35,26 @@ public class NganyaController {
         String imageUrl = null;
 
         if (image != null && !image.isEmpty()) {
-            imageUrl = fileStorageService.saveNganyaImage(image);
+            imageUrl = cloudinaryService.uploadNganyaImage(image);
         }
 
         Nganya nganya = Nganya.builder()
                 .name(name)
                 .size(size)
-                .imageUrl(imageUrl)
+                .imageUrl(imageUrl) // 🔥 FULL CLOUDINARY URL
                 .build();
 
         return nganyaRepository.save(nganya);
     }
 
-    // ✅ DELETE (NEW)
+    // ✅ DELETE NGANYA
     @DeleteMapping("/admin/nganyas/{id}")
     public ResponseEntity<?> deleteNganya(@PathVariable Long id) {
+
         Nganya nganya = nganyaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Nganya not found"));
 
-        // Delete image from disk
-        fileStorageService.deleteFile(nganya.getImageUrl());
-
-        // Delete DB record
+        cloudinaryService.deleteImage(nganya.getImageUrl());
         nganyaRepository.delete(nganya);
 
         return ResponseEntity.ok().build();
